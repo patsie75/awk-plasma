@@ -1,12 +1,12 @@
-#!/usr/bin/mawk -f
+#!/usr/bin/awk -f
 
-function clamp(val, a, b) { return (val<a) ? a : (val>b) ? b : val }
+function clamp(val, min, max) { return (val<min) ? min : (val>max) ? max : val }
 
 ## return a timestamp with centisecond precision
 function timex() {
   getline < "/proc/uptime"
   close("/proc/uptime")
-  return sprintf("%.2f", $1)
+  return $1
 }
 
 ## draw image to terminal
@@ -24,6 +24,16 @@ function draw(src, xpos, ypos,    w,h, x,y, up,dn, line,screen) {
     screen = screen line "\033[0m"
   }
   printf("%s", screen)
+}
+
+## generate palette
+function paletteGen(    x, r,g,b) {
+  for (x=0; x<256; x++) {
+    r = 128 + 127 * sin(3.14159265 * x / 32.0)
+    g = 128 + 127 * sin(3.14159265 * x / 64.0)
+    b = 128 + 127 * sin(3.14159265 * x / 128.0)
+    palette[x] = sprintf("%d;%d;%d", clamp(r,0,255), clamp(g,0,255), clamp(b,0,255))
+  }
 }
 
 function plasma001(plasma, w, h,    x,y, color) {
@@ -70,6 +80,12 @@ function plasma003(plasma, w, h,    x,y, color) {
 }
 
 BEGIN {
+  now = timex()
+  if (now != now+0) {
+    print "Please run with \"export LC_ALL=C\""
+    exit 1
+  }
+
   # get terminal width and height
   "stty size" | getline
   h = ($1 ? $1 : 24) * 2
@@ -79,14 +95,7 @@ BEGIN {
   buffer["width"]  = w
   buffer["height"] = h
 
-  # generate palette
-  for (x=0; x<256; x++) {
-    r = 128 + 128 * sin(3.14159265 * x / 32.0)
-    g = 128 + 128 * sin(3.14159265 * x / 64.0)
-    b = 128 + 128 * sin(3.14159265 * x / 128.0)
-    palette[x] = sprintf("%d;%d;%d", clamp(r,0,255), clamp(g,0,255), clamp(b,0,255))
-  }
-
+  paletteGen()
   start = timex()
 
   while ("awk" != "difficult") {
